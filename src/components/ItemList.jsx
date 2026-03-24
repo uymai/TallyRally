@@ -100,10 +100,13 @@ export default function ItemList({ items, listId, playerName, onMove }) {
 
   async function handleUncheck(itemId) {
     const itemRef = doc(db, 'lists', listId, 'items', itemId)
+    const scoreRef = doc(db, 'lists', listId, 'scores', playerName)
 
     try {
       await runTransaction(db, async (tx) => {
-        const itemDoc = await tx.get(itemRef)
+        // All reads must happen before any writes in a Firestore transaction
+        const [itemDoc, scoreDoc] = await Promise.all([tx.get(itemRef), tx.get(scoreRef)])
+
         if (!itemDoc.exists()) return
         const data = itemDoc.data()
         if (!data.checkedOff || data.checkedBy !== playerName) return
@@ -114,8 +117,6 @@ export default function ItemList({ items, listId, playerName, onMove }) {
           checkedAt: null,
         })
 
-        const scoreRef = doc(db, 'lists', listId, 'scores', playerName)
-        const scoreDoc = await tx.get(scoreRef)
         const current = scoreDoc.exists() ? (scoreDoc.data().points ?? 0) : 0
         tx.set(
           scoreRef,
