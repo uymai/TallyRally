@@ -20,6 +20,7 @@ export default function HomeView() {
       await setDoc(doc(db, 'lists', id), {
         name: listName.trim(),
         createdAt: serverTimestamp(),
+        lastActivityAt: serverTimestamp(),
       })
       localStorage.setItem('tallyrally_name', playerName.trim())
       navigate(`/list/${id}`)
