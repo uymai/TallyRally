@@ -1,6 +1,6 @@
 import { db, doc, runTransaction, increment, serverTimestamp } from '../firebase'
 
-export default function ItemList({ items, listId, playerName }) {
+export default function ItemList({ items, listId, playerName, onMove }) {
   async function handleCheck(itemId) {
     const itemRef = doc(db, 'lists', listId, 'items', itemId)
 
@@ -67,7 +67,7 @@ export default function ItemList({ items, listId, playerName }) {
 
   return (
     <ul className="item-list">
-      {items.map((item) => (
+      {items.map((item, index) => (
         <li
           key={item.id}
           className={`item-card ${item.checkedOff ? 'checked' : ''}`}
@@ -103,6 +103,24 @@ export default function ItemList({ items, listId, playerName }) {
               ↩
             </button>
           )}
+          <div className="reorder-btns" aria-label="Reorder item">
+            <button
+              className="reorder-btn"
+              onClick={() => onMove(index, 'up')}
+              disabled={index === 0}
+              aria-label={`Move ${item.text} up`}
+            >
+              ▲
+            </button>
+            <button
+              className="reorder-btn"
+              onClick={() => onMove(index, 'down')}
+              disabled={index === items.length - 1}
+              aria-label={`Move ${item.text} down`}
+            >
+              ▼
+            </button>
+          </div>
         </li>
       ))}
     </ul>

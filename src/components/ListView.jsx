@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { db, doc, getDoc } from '../firebase'
 import useListItems from '../hooks/useListItems'
+import useLocalOrder from '../hooks/useLocalOrder'
 import useScores from '../hooks/useScores'
 import Scoreboard from './Scoreboard'
 import AddItemForm from './AddItemForm'
@@ -12,6 +13,7 @@ export default function ListView() {
   const { listId } = useParams()
   const [listName, setListName] = useState('')
   const { items, loading, error } = useListItems(listId)
+  const { sortedItems, moveItem } = useLocalOrder(listId, items)
   const scores = useScores(listId)
   const playerName = localStorage.getItem('tallyrally_name')
 
@@ -57,7 +59,7 @@ export default function ListView() {
           <p>No items yet. Add something to get started!</p>
         </div>
       ) : (
-        <ItemList items={items} listId={listId} playerName={playerName} />
+        <ItemList items={sortedItems} listId={listId} playerName={playerName} onMove={moveItem} />
       )}
     </main>
   )
