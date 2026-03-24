@@ -1,13 +1,7 @@
 import { db, doc, runTransaction, increment, serverTimestamp } from '../firebase'
-import { checkRateLimit } from '../utils/rateLimit'
 
 export default function ItemList({ items, listId, playerName }) {
   async function handleCheck(itemId) {
-    if (!checkRateLimit(`check:${listId}`, 10, 30_000)) {
-      alert('Slow down! You can check at most 10 items every 30 seconds.')
-      return
-    }
-
     const itemRef = doc(db, 'lists', listId, 'items', itemId)
 
     try {
