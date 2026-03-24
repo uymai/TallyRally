@@ -1,6 +1,72 @@
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { db, doc, runTransaction, increment, serverTimestamp } from '../firebase'
 
+function SortableItem({ item, playerName, onCheck, onUncheck }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: item.id,
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={`item-card ${item.checkedOff ? 'checked' : ''} ${isDragging ? 'dragging' : ''}`}
+    >
+      <button
+        className="check-btn"
+        onClick={() => !item.checkedOff && onCheck(item.id)}
+        disabled={item.checkedOff}
+        aria-label={
+          item.checkedOff
+            ? `${item.text} - checked by ${item.checkedBy}`
+            : `Check off ${item.text}`
+        }
+      >
+        <span className="check-icon">
+          {item.checkedOff ? '✅' : '⬜'}
+        </span>
+      </button>
+      <div className="item-content">
+        <span className="item-text">{item.text}</span>
+        <span className="item-meta">
+          {item.checkedOff
+            ? `Claimed by ${item.checkedBy}`
+            : `Added by ${item.addedBy}`}
+        </span>
+      </div>
+      {item.checkedOff && item.checkedBy === playerName && (
+        <button
+          className="uncheck-btn"
+          onClick={() => onUncheck(item.id)}
+          aria-label={`Undo check for ${item.text}`}
+        >
+          ↩
+        </button>
+      )}
+      <div
+        className="drag-handle"
+        {...listeners}
+        {...attributes}
+        aria-label="Drag to reorder"
+      >
+        ⠿
+      </div>
+    </li>
+  )
+}
+
 export default function ItemList({ items, listId, playerName, onMove }) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  )
+
   async function handleCheck(itemId) {
     const itemRef = doc(db, 'lists', listId, 'items', itemId)
 
@@ -65,64 +131,32 @@ export default function ItemList({ items, listId, playerName, onMove }) {
     }
   }
 
+  function handleDragEnd(event) {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      onMove(active.id, over.id)
+    }
+  }
+
   return (
-    <ul className="item-list">
-      {items.map((item, index) => (
-        <li
-          key={item.id}
-          className={`item-card ${item.checkedOff ? 'checked' : ''}`}
-        >
-          <button
-            className="check-btn"
-            onClick={() => !item.checkedOff && handleCheck(item.id)}
-            disabled={item.checkedOff}
-            aria-label={
-              item.checkedOff
-                ? `${item.text} - checked by ${item.checkedBy}`
-                : `Check off ${item.text}`
-            }
-          >
-            <span className="check-icon">
-              {item.checkedOff ? '✅' : '⬜'}
-            </span>
-          </button>
-          <div className="item-content">
-            <span className="item-text">{item.text}</span>
-            <span className="item-meta">
-              {item.checkedOff
-                ? `Claimed by ${item.checkedBy}`
-                : `Added by ${item.addedBy}`}
-            </span>
-          </div>
-          {item.checkedOff && item.checkedBy === playerName && (
-            <button
-              className="uncheck-btn"
-              onClick={() => handleUncheck(item.id)}
-              aria-label={`Undo check for ${item.text}`}
-            >
-              ↩
-            </button>
-          )}
-          <div className="reorder-btns" aria-label="Reorder item">
-            <button
-              className="reorder-btn"
-              onClick={() => onMove(index, 'up')}
-              disabled={index === 0}
-              aria-label={`Move ${item.text} up`}
-            >
-              ▲
-            </button>
-            <button
-              className="reorder-btn"
-              onClick={() => onMove(index, 'down')}
-              disabled={index === items.length - 1}
-              aria-label={`Move ${item.text} down`}
-            >
-              ▼
-            </button>
-          </div>
-        </li>
-      ))}
-    </ul>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+        <ul className="item-list">
+          {items.map((item) => (
+            <SortableItem
+              key={item.id}
+              item={item}
+              playerName={playerName}
+              onCheck={handleCheck}
+              onUncheck={handleUncheck}
+            />
+          ))}
+        </ul>
+      </SortableContext>
+    </DndContext>
   )
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { arrayMove } from '@dnd-kit/sortable'
 
 const storageKey = (listId) => `tallyrally_order_${listId}`
 
@@ -56,14 +57,12 @@ export default function useLocalOrder(listId, items) {
     }
   }, [listId, orderedIds])
 
-  function moveItem(index, direction) {
+  function moveItem(activeId, overId) {
     const ids = sortedItems.map((i) => i.id)
-    const targetIndex = direction === 'up' ? index - 1 : index + 1
-    if (targetIndex < 0 || targetIndex >= ids.length) return
-
-    const next = [...ids]
-    ;[next[index], next[targetIndex]] = [next[targetIndex], next[index]]
-    setOrderedIds(next)
+    const oldIndex = ids.indexOf(activeId)
+    const newIndex = ids.indexOf(overId)
+    if (oldIndex === -1 || newIndex === -1) return
+    setOrderedIds(arrayMove(ids, oldIndex, newIndex))
   }
 
   return { sortedItems, moveItem }
