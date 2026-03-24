@@ -11,7 +11,7 @@ import ShareButton from './ShareButton'
 export default function ListView() {
   const { listId } = useParams()
   const [listName, setListName] = useState('')
-  const { items, loading } = useListItems(listId)
+  const { items, loading, error } = useListItems(listId)
   const scores = useScores(listId)
   const playerName = localStorage.getItem('tallyrally_name')
 
@@ -48,7 +48,9 @@ export default function ListView() {
       <Scoreboard scores={scores} currentPlayer={playerName} />
       <AddItemForm listId={listId} playerName={playerName} />
 
-      {loading ? (
+      {error ? (
+        <div className="empty-state"><p>{error}</p></div>
+      ) : loading ? (
         <div className="loading">Loading items...</div>
       ) : items.length === 0 ? (
         <div className="empty-state">

@@ -12,9 +12,15 @@ export default function useScores(listId) {
       orderBy('points', 'desc')
     )
 
-    const unsub = onSnapshot(q, (snapshot) => {
-      setScores(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
-    })
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        setScores(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
+      },
+      (err) => {
+        console.error('Failed to load scores:', err)
+      }
+    )
 
     return unsub
   }, [listId])

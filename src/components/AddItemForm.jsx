@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { db, collection, addDoc, serverTimestamp } from '../firebase'
+import { checkRateLimit } from '../utils/rateLimit'
 
 export default function AddItemForm({ listId, playerName }) {
   const [text, setText] = useState('')
@@ -8,6 +9,10 @@ export default function AddItemForm({ listId, playerName }) {
   async function handleSubmit(e) {
     e.preventDefault()
     if (!text.trim()) return
+    if (!checkRateLimit(`add:${listId}`, 5, 30_000)) {
+      alert('Slow down! You can add at most 5 items every 30 seconds.')
+      return
+    }
 
     setAdding(true)
     try {
@@ -22,8 +27,9 @@ export default function AddItemForm({ listId, playerName }) {
       setText('')
     } catch (err) {
       console.error('Failed to add item:', err)
+    } finally {
+      setAdding(false)
     }
-    setAdding(false)
   }
 
   return (
@@ -34,6 +40,7 @@ export default function AddItemForm({ listId, playerName }) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         disabled={adding}
+        maxLength={100}
         required
       />
       <button type="submit" className="btn-add" disabled={adding}>
