@@ -70,6 +70,7 @@ export default function ItemList({ items, listId, playerName, onMove }) {
 
   async function handleCheck(itemId) {
     const itemRef = doc(db, 'lists', listId, 'items', itemId)
+    const listRef = doc(db, 'lists', listId)
 
     try {
       await runTransaction(db, async (tx) => {
@@ -92,6 +93,8 @@ export default function ItemList({ items, listId, playerName, onMove }) {
           },
           { merge: true }
         )
+
+        tx.update(listRef, { lastActivityAt: serverTimestamp() })
       })
     } catch (err) {
       console.error('Failed to check off item:', err)
