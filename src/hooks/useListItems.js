@@ -4,6 +4,7 @@ import { db, collection, query, orderBy, onSnapshot } from '../firebase'
 export default function useListItems(listId) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     if (!listId) return
@@ -13,13 +14,21 @@ export default function useListItems(listId) {
       orderBy('createdAt', 'asc')
     )
 
-    const unsub = onSnapshot(q, (snapshot) => {
-      setItems(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
-      setLoading(false)
-    })
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        setItems(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
+        setLoading(false)
+      },
+      (err) => {
+        console.error('Failed to load items:', err)
+        setError('Failed to load items.')
+        setLoading(false)
+      }
+    )
 
     return unsub
   }, [listId])
 
-  return { items, loading }
+  return { items, loading, error }
 }

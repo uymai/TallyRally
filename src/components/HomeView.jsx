@@ -45,6 +45,7 @@ export default function HomeView() {
           placeholder="e.g. Weekend BBQ"
           value={listName}
           onChange={(e) => setListName(e.target.value)}
+          maxLength={60}
           required
           autoFocus
         />
@@ -56,6 +57,7 @@ export default function HomeView() {
           placeholder="e.g. Alex"
           value={playerName}
           onChange={(e) => setPlayerName(e.target.value)}
+          maxLength={30}
           required
         />
 

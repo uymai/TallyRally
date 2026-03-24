@@ -29,6 +29,7 @@ export default function JoinView() {
           placeholder="e.g. Alex"
           value={playerName}
           onChange={(e) => setPlayerName(e.target.value)}
+          maxLength={30}
           required
           autoFocus
         />

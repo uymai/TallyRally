@@ -1,8 +1,76 @@
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { db, doc, runTransaction, increment, serverTimestamp } from '../firebase'
 
-export default function ItemList({ items, listId, playerName }) {
+function SortableItem({ item, playerName, onCheck, onUncheck }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: item.id,
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={`item-card ${item.checkedOff ? 'checked' : ''} ${isDragging ? 'dragging' : ''}`}
+    >
+      <button
+        className="check-btn"
+        onClick={() => !item.checkedOff && onCheck(item.id)}
+        disabled={item.checkedOff}
+        aria-label={
+          item.checkedOff
+            ? `${item.text} - checked by ${item.checkedBy}`
+            : `Check off ${item.text}`
+        }
+      >
+        <span className="check-icon">
+          {item.checkedOff ? '✅' : '⬜'}
+        </span>
+      </button>
+      <div className="item-content">
+        <span className="item-text">{item.text}</span>
+        <span className="item-meta">
+          {item.checkedOff
+            ? `Claimed by ${item.checkedBy}`
+            : `Added by ${item.addedBy}`}
+        </span>
+      </div>
+      {item.checkedOff && item.checkedBy === playerName && (
+        <button
+          className="uncheck-btn"
+          onClick={() => onUncheck(item.id)}
+          aria-label={`Undo check for ${item.text}`}
+          title="Undo my check"
+        >
+          ✕
+        </button>
+      )}
+      <div
+        className="drag-handle"
+        {...listeners}
+        {...attributes}
+        aria-label="Drag to reorder"
+      >
+        ⠿
+      </div>
+    </li>
+  )
+}
+
+export default function ItemList({ items, listId, playerName, onMove }) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  )
+
   async function handleCheck(itemId) {
     const itemRef = doc(db, 'lists', listId, 'items', itemId)
+    const listRef = doc(db, 'lists', listId)
 
     try {
       await runTransaction(db, async (tx) => {
@@ -25,43 +93,75 @@ export default function ItemList({ items, listId, playerName }) {
           },
           { merge: true }
         )
+
+        tx.update(listRef, { lastActivityAt: serverTimestamp() })
       })
     } catch (err) {
       console.error('Failed to check off item:', err)
     }
   }
 
+  async function handleUncheck(itemId) {
+    const itemRef = doc(db, 'lists', listId, 'items', itemId)
+    const scoreRef = doc(db, 'lists', listId, 'scores', playerName)
+
+    try {
+      await runTransaction(db, async (tx) => {
+        // All reads must happen before any writes in a Firestore transaction
+        const [itemDoc, scoreDoc] = await Promise.all([tx.get(itemRef), tx.get(scoreRef)])
+
+        if (!itemDoc.exists()) return
+        const data = itemDoc.data()
+        if (!data.checkedOff || data.checkedBy !== playerName) return
+
+        tx.update(itemRef, {
+          checkedOff: false,
+          checkedBy: null,
+          checkedAt: null,
+        })
+
+        const current = scoreDoc.exists() ? (scoreDoc.data().points ?? 0) : 0
+        tx.set(
+          scoreRef,
+          {
+            name: playerName,
+            points: Math.max(0, current - 1),
+            lastUpdated: serverTimestamp(),
+          },
+          { merge: true }
+        )
+      })
+    } catch (err) {
+      console.error('Failed to uncheck item:', err)
+    }
+  }
+
+  function handleDragEnd(event) {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      onMove(active.id, over.id)
+    }
+  }
+
   return (
-    <ul className="item-list">
-      {items.map((item) => (
-        <li
-          key={item.id}
-          className={`item-card ${item.checkedOff ? 'checked' : ''}`}
-        >
-          <button
-            className="check-btn"
-            onClick={() => !item.checkedOff && handleCheck(item.id)}
-            disabled={item.checkedOff}
-            aria-label={
-              item.checkedOff
-                ? `${item.text} - checked by ${item.checkedBy}`
-                : `Check off ${item.text}`
-            }
-          >
-            <span className="check-icon">
-              {item.checkedOff ? '✅' : '⬜'}
-            </span>
-          </button>
-          <div className="item-content">
-            <span className="item-text">{item.text}</span>
-            <span className="item-meta">
-              {item.checkedOff
-                ? `Claimed by ${item.checkedBy}`
-                : `Added by ${item.addedBy}`}
-            </span>
-          </div>
-        </li>
-      ))}
-    </ul>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+        <ul className="item-list">
+          {items.map((item) => (
+            <SortableItem
+              key={item.id}
+              item={item}
+              playerName={playerName}
+              onCheck={handleCheck}
+              onUncheck={handleUncheck}
+            />
+          ))}
+        </ul>
+      </SortableContext>
+    </DndContext>
   )
 }

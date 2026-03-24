@@ -324,6 +324,26 @@ body {
   cursor: default;
 }
 
+.uncheck-btn {
+  flex-shrink: 0;
+  background: none;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  padding: 0.2rem 0.4rem;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  line-height: 1;
+}
+
+.uncheck-btn:hover {
+  color: #dc2626;
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
 .item-content {
   flex: 1;
   min-width: 0;
@@ -359,4 +379,33 @@ body {
 
 .item-card.checked .check-icon {
   animation: pop 0.3s ease;
+}
+
+.drag-handle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+  padding: 0.25rem 0.25rem;
+  border-radius: var(--radius-sm);
+  opacity: 0.4;
+  transition: opacity 0.15s, color 0.15s;
+  touch-action: none;
+}
+
+.drag-handle:hover {
+  opacity: 1;
+  color: var(--color-primary);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.item-card.dragging {
+  opacity: 0.5;
+  box-shadow: var(--shadow-md);
 }
