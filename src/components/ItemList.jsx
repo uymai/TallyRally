@@ -46,8 +46,9 @@ function SortableItem({ item, playerName, onCheck, onUncheck }) {
           className="uncheck-btn"
           onClick={() => onUncheck(item.id)}
           aria-label={`Undo check for ${item.text}`}
+          title="Undo my check"
         >
-          ↩
+          ✕
         </button>
       )}
       <div
