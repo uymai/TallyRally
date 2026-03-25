@@ -4,6 +4,7 @@ import { db, doc, getDoc } from '../firebase'
 import useListItems from '../hooks/useListItems'
 import useLocalOrder from '../hooks/useLocalOrder'
 import useScores from '../hooks/useScores'
+import useRecentLists from '../hooks/useRecentLists'
 import Scoreboard from './Scoreboard'
 import AddItemForm from './AddItemForm'
 import ItemList from './ItemList'
@@ -16,11 +17,14 @@ export default function ListView() {
   const { sortedItems, moveItem } = useLocalOrder(listId, items)
   const scores = useScores(listId)
   const playerName = localStorage.getItem('tallyrally_name')
+  const { addRecentList } = useRecentLists()
 
   useEffect(() => {
     getDoc(doc(db, 'lists', listId)).then((snap) => {
       if (snap.exists()) {
-        setListName(snap.data().name)
+        const name = snap.data().name
+        setListName(name)
+        addRecentList(listId, name)
       } else {
         setListName('List not found')
       }
