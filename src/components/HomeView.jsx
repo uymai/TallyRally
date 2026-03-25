@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db, doc, setDoc, serverTimestamp } from '../firebase'
+import useRecentLists from '../hooks/useRecentLists'
 
 export default function HomeView() {
   const [listName, setListName] = useState('')
@@ -9,6 +10,7 @@ export default function HomeView() {
   )
   const [creating, setCreating] = useState(false)
   const navigate = useNavigate()
+  const { recentLists, addRecentList, removeRecentList } = useRecentLists()
 
   async function handleCreate(e) {
     e.preventDefault()
@@ -17,12 +19,14 @@ export default function HomeView() {
     setCreating(true)
     try {
       const id = crypto.randomUUID()
+      const name = listName.trim()
       await setDoc(doc(db, 'lists', id), {
-        name: listName.trim(),
+        name,
         createdAt: serverTimestamp(),
         lastActivityAt: serverTimestamp(),
       })
       localStorage.setItem('tallyrally_name', playerName.trim())
+      addRecentList(id, name)
       navigate(`/list/${id}`)
     } catch (err) {
       console.error('Failed to create list:', err)
@@ -66,6 +70,31 @@ export default function HomeView() {
           {creating ? 'Creating...' : 'Create List'}
         </button>
       </form>
+
+      {recentLists.length > 0 && (
+        <section className="recent-lists">
+          <h2 className="recent-lists-heading">Recent lists</h2>
+          <ul className="recent-list-items">
+            {recentLists.map((list) => (
+              <li key={list.id} className="recent-list-item">
+                <button
+                  className="recent-list-link"
+                  onClick={() => navigate(`/list/${list.id}`)}
+                >
+                  {list.name}
+                </button>
+                <button
+                  className="recent-list-remove"
+                  aria-label={`Remove ${list.name} from recent lists`}
+                  onClick={() => removeRecentList(list.id)}
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </main>
   )
 }
