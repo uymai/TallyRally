@@ -14,6 +14,7 @@ import {
   serverTimestamp,
   increment,
 } from 'firebase/firestore'
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth'
 
 // Firebase config is loaded from environment variables.
 // Copy .env.local.example to .env.local and fill in your values.
@@ -29,9 +30,13 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
+const auth = getAuth(app)
 
 export {
   db,
+  auth,
+  signInAnonymously,
+  onAuthStateChanged,
   collection,
   doc,
   addDoc,

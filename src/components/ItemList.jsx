@@ -1,9 +1,10 @@
+import { useRef } from 'react'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { db, doc, runTransaction, increment, serverTimestamp } from '../firebase'
 
-function SortableItem({ item, playerName, onCheck, onUncheck }) {
+function SortableItem({ item, uid, playerName, onCheck, onUncheck }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
   })
@@ -41,7 +42,7 @@ function SortableItem({ item, playerName, onCheck, onUncheck }) {
             : `Added by ${item.addedBy}`}
         </span>
       </div>
-      {item.checkedOff && item.checkedBy === playerName && (
+      {item.checkedOff && item.checkedByUid === uid && (
         <button
           className="uncheck-btn"
           onClick={() => onUncheck(item.id)}
@@ -63,14 +64,20 @@ function SortableItem({ item, playerName, onCheck, onUncheck }) {
   )
 }
 
-export default function ItemList({ items, listId, playerName, onMove }) {
+export default function ItemList({ items, listId, playerName, uid, authReady, onMove }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   )
+  const inFlightRef = useRef(new Set())
 
   async function handleCheck(itemId) {
+    if (!authReady || !uid) return
+    if (inFlightRef.current.has(itemId)) return
+    inFlightRef.current.add(itemId)
+
     const itemRef = doc(db, 'lists', listId, 'items', itemId)
     const listRef = doc(db, 'lists', listId)
+    const scoreRef = doc(db, 'lists', listId, 'scores', uid)
 
     try {
       await runTransaction(db, async (tx) => {
@@ -80,13 +87,14 @@ export default function ItemList({ items, listId, playerName, onMove }) {
         tx.update(itemRef, {
           checkedOff: true,
           checkedBy: playerName,
+          checkedByUid: uid,
           checkedAt: serverTimestamp(),
         })
 
-        const scoreRef = doc(db, 'lists', listId, 'scores', playerName)
         tx.set(
           scoreRef,
           {
+            uid,
             name: playerName,
             points: increment(1),
             lastUpdated: serverTimestamp(),
@@ -98,12 +106,18 @@ export default function ItemList({ items, listId, playerName, onMove }) {
       })
     } catch (err) {
       console.error('Failed to check off item:', err)
+    } finally {
+      inFlightRef.current.delete(itemId)
     }
   }
 
   async function handleUncheck(itemId) {
+    if (!authReady || !uid) return
+    if (inFlightRef.current.has(itemId)) return
+    inFlightRef.current.add(itemId)
+
     const itemRef = doc(db, 'lists', listId, 'items', itemId)
-    const scoreRef = doc(db, 'lists', listId, 'scores', playerName)
+    const scoreRef = doc(db, 'lists', listId, 'scores', uid)
 
     try {
       await runTransaction(db, async (tx) => {
@@ -112,11 +126,12 @@ export default function ItemList({ items, listId, playerName, onMove }) {
 
         if (!itemDoc.exists()) return
         const data = itemDoc.data()
-        if (!data.checkedOff || data.checkedBy !== playerName) return
+        if (!data.checkedOff || data.checkedByUid !== uid) return
 
         tx.update(itemRef, {
           checkedOff: false,
           checkedBy: null,
+          checkedByUid: null,
           checkedAt: null,
         })
 
@@ -124,6 +139,7 @@ export default function ItemList({ items, listId, playerName, onMove }) {
         tx.set(
           scoreRef,
           {
+            uid,
             name: playerName,
             points: Math.max(0, current - 1),
             lastUpdated: serverTimestamp(),
@@ -133,6 +149,8 @@ export default function ItemList({ items, listId, playerName, onMove }) {
       })
     } catch (err) {
       console.error('Failed to uncheck item:', err)
+    } finally {
+      inFlightRef.current.delete(itemId)
     }
   }
 
@@ -155,6 +173,7 @@ export default function ItemList({ items, listId, playerName, onMove }) {
             <SortableItem
               key={item.id}
               item={item}
+              uid={uid}
               playerName={playerName}
               onCheck={handleCheck}
               onUncheck={handleUncheck}

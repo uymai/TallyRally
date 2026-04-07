@@ -1,13 +1,18 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { db, collection, doc, addDoc, updateDoc, serverTimestamp } from '../firebase'
 
-export default function AddItemForm({ listId, playerName }) {
+export default function AddItemForm({ listId, playerName, uid, authReady }) {
   const [text, setText] = useState('')
   const [adding, setAdding] = useState(false)
+  const lastSubmitRef = useRef(0)
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!text.trim()) return
+    if (!text.trim() || !authReady || !uid) return
+
+    const now = Date.now()
+    if (now - lastSubmitRef.current < 500) return
+    lastSubmitRef.current = now
 
     setAdding(true)
     try {
@@ -17,6 +22,7 @@ export default function AddItemForm({ listId, playerName }) {
           addedBy: playerName,
           checkedOff: false,
           checkedBy: null,
+          checkedByUid: null,
           checkedAt: null,
           createdAt: serverTimestamp(),
         }),
@@ -37,11 +43,11 @@ export default function AddItemForm({ listId, playerName }) {
         placeholder="Add an item..."
         value={text}
         onChange={(e) => setText(e.target.value)}
-        disabled={adding}
+        disabled={adding || !authReady}
         maxLength={100}
         required
       />
-      <button type="submit" className="btn-add" disabled={adding}>
+      <button type="submit" className="btn-add" disabled={adding || !authReady}>
         +
       </button>
     </form>
