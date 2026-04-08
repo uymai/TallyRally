@@ -4,7 +4,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { CSS } from '@dnd-kit/utilities'
 import { db, doc, runTransaction, increment, serverTimestamp } from '../firebase'
 
-function SortableItem({ item, uid, playerName, onCheck, onUncheck }) {
+function SortableItem({ item, uid, authReady, playerName, onCheck, onUncheck }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
   })
@@ -23,7 +23,7 @@ function SortableItem({ item, uid, playerName, onCheck, onUncheck }) {
       <button
         className="check-btn"
         onClick={() => !item.checkedOff && onCheck(item.id)}
-        disabled={item.checkedOff}
+        disabled={item.checkedOff || !authReady}
         aria-label={
           item.checkedOff
             ? `${item.text} - checked by ${item.checkedBy}`
@@ -174,6 +174,7 @@ export default function ItemList({ items, listId, playerName, uid, authReady, on
               key={item.id}
               item={item}
               uid={uid}
+              authReady={authReady}
               playerName={playerName}
               onCheck={handleCheck}
               onUncheck={handleUncheck}
