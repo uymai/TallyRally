@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { db, doc, runTransaction, increment, serverTimestamp } from '../firebase'
+import { db, doc, updateDoc, runTransaction, increment, serverTimestamp } from '../firebase'
 
 function SortableItem({ item, uid, authReady, playerName, onCheck, onUncheck }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -101,9 +101,10 @@ export default function ItemList({ items, listId, playerName, uid, authReady, on
           },
           { merge: true }
         )
-
-        tx.update(listRef, { lastActivityAt: serverTimestamp() })
       })
+      // Update lastActivityAt outside the transaction so rapid check-offs
+      // don't stall the Firestore watch stream via per-document write throttling.
+      updateDoc(listRef, { lastActivityAt: serverTimestamp() }).catch(console.error)
     } catch (err) {
       console.error('Failed to check off item:', err)
     } finally {
@@ -147,6 +148,7 @@ export default function ItemList({ items, listId, playerName, uid, authReady, on
           { merge: true }
         )
       })
+      updateDoc(doc(db, 'lists', listId), { lastActivityAt: serverTimestamp() }).catch(console.error)
     } catch (err) {
       console.error('Failed to uncheck item:', err)
     } finally {
