@@ -5,6 +5,7 @@ import useListItems from '../hooks/useListItems'
 import useLocalOrder from '../hooks/useLocalOrder'
 import useScores from '../hooks/useScores'
 import useRecentLists from '../hooks/useRecentLists'
+import useAuth from '../hooks/useAuth'
 import Scoreboard from './Scoreboard'
 import AddItemForm from './AddItemForm'
 import ItemList from './ItemList'
@@ -18,6 +19,7 @@ export default function ListView() {
   const scores = useScores(listId)
   const playerName = localStorage.getItem('tallyrally_name')
   const { addRecentList } = useRecentLists()
+  const { uid, authReady } = useAuth()
 
   useEffect(() => {
     getDoc(doc(db, 'lists', listId)).then((snap) => {
@@ -52,7 +54,7 @@ export default function ListView() {
       </header>
 
       <Scoreboard scores={scores} currentPlayer={playerName} />
-      <AddItemForm listId={listId} playerName={playerName} />
+      <AddItemForm listId={listId} playerName={playerName} uid={uid} authReady={authReady} />
 
       {error ? (
         <div className="empty-state"><p>{error}</p></div>
@@ -63,7 +65,7 @@ export default function ListView() {
           <p>No items yet. Add something to get started!</p>
         </div>
       ) : (
-        <ItemList items={sortedItems} listId={listId} playerName={playerName} onMove={moveItem} />
+        <ItemList items={sortedItems} listId={listId} playerName={playerName} uid={uid} authReady={authReady} onMove={moveItem} />
       )}
     </main>
   )

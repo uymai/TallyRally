@@ -1,0 +1,60 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function validListName(s) {
+      return s is string && s.size() >= 1 && s.size() <= 60;
+    }
+
+    function validPlayerName(s) {
+      return s is string && s.size() >= 1 && s.size() <= 30;
+    }
+
+    function validItemText(s) {
+      return s is string && s.size() >= 1 && s.size() <= 100;
+    }
+
+    match /lists/{listId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && validListName(request.resource.data.name)
+        && request.resource.data.keys().hasAll(['name', 'createdAt', 'lastActivityAt']);
+      // Only lastActivityAt may be updated on the list document itself
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastActivityAt']);
+
+      match /items/{itemId} {
+        allow read: if true;
+        allow create: if request.auth != null
+          && validItemText(request.resource.data.text)
+          && validPlayerName(request.resource.data.addedBy)
+          && request.resource.data.checkedOff == false
+          && request.resource.data.keys().hasAll(['text', 'addedBy', 'checkedOff', 'createdAt']);
+        allow update: if request.auth != null
+          && (
+            // Checking off: item must currently be unchecked; uid must match the caller
+            (!resource.data.checkedOff
+              && request.resource.data.checkedOff == true
+              && request.resource.data.checkedByUid == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['checkedOff', 'checkedBy', 'checkedByUid', 'checkedAt']))
+            ||
+            // Unchecking: only the uid that originally checked it may uncheck it
+            (resource.data.checkedOff == true
+              && request.resource.data.checkedOff == false
+              && resource.data.checkedByUid == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['checkedOff', 'checkedBy', 'checkedByUid', 'checkedAt']))
+          );
+        allow delete: if false;
+      }
+
+      match /scores/{uid} {
+        allow read: if true;
+        // Each player may only write to their own score document
+        allow write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+  }
+}

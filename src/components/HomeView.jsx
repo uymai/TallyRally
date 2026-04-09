@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db, doc, setDoc, serverTimestamp } from '../firebase'
 import useRecentLists from '../hooks/useRecentLists'
+import useAuth from '../hooks/useAuth'
 
 export default function HomeView() {
   const [listName, setListName] = useState('')
@@ -11,10 +12,11 @@ export default function HomeView() {
   const [creating, setCreating] = useState(false)
   const navigate = useNavigate()
   const { recentLists, addRecentList, removeRecentList } = useRecentLists()
+  const { authReady } = useAuth()
 
   async function handleCreate(e) {
     e.preventDefault()
-    if (!listName.trim() || !playerName.trim()) return
+    if (!listName.trim() || !playerName.trim() || !authReady) return
 
     setCreating(true)
     try {
@@ -66,7 +68,7 @@ export default function HomeView() {
           required
         />
 
-        <button type="submit" className="btn-primary" disabled={creating}>
+        <button type="submit" className="btn-primary" disabled={creating || !authReady}>
           {creating ? 'Creating...' : 'Create List'}
         </button>
       </form>
